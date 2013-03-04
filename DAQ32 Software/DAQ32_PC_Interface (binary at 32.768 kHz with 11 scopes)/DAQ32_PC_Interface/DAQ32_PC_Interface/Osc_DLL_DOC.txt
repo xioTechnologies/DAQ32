@@ -1,0 +1,1440 @@
+   Michael Bernstein   July 10, 2009.   Ashqelon.
+
+     Virtual Oscilloscope Server
+
+
+
+        Dynamic-link library for win32:
+(for Microsoft Windows 95, 98, NT4, XP, 2000, 2003, Vista, Windows 7).
+
+
+  Original file name is "Osc_DLL.dll", file size is 710144 bytes,
+
+  md5 checksum (RFC 1321 standard) is: 4123c94af3bf4895d5c8be0ad28269b6
+
+
+
+  Exported functions:
+                  AtOpenLib,
+                  ScopeCreate,
+                  ScopeDestroy,
+                  ScopeShow,
+                  ScopeHide,
+                  ScopeCleanBuffers,
+                  QuickUpDate,
+                  ShowNext,
+                  ExternalNext,
+
+                  ScopeGetFormLeft,
+                  ScopeGetFormTop,
+                  ScopeGetFormWidth,
+                  ScopeGetFormHeight,
+                  ScopeGetScreenWidth,
+                  ScopeGetScreenHeight,
+                  ScopeGetCellPixelSize,
+                  ScopeGetCellSampleSize,
+                  ScopeGetPanelState,
+                  ScopeGetAmpScale,
+                  ScopeGetAmpOffset,
+                  ScopeGetTriggerLevel,
+                  ScopeGetTriggerSourse,
+                  ScopeGetActiveTriggerEdge,
+                  ScopeGetTrigHoldOffSmplsNum,
+
+                  ScopeSetPanelState,
+                  ScopeSetFormPos,
+                  ScopeSetFormSize,
+                  ScopeSetCellPixelSize,
+                  ScopeSetCellSampleSize,
+                  ScopeSetCaption,
+                  ScopeSetAmpScale,
+                  ScopeSetAmpOffset,
+                  ScopeSetTriggerLevel,
+                  ScopeSetTriggerSourse,
+                  ScopeSetActiveTriggerEdge,
+                  ScopeSetTrigHoldOffSmplsNum,
+
+
+                  DllGetClassObject,
+                  DllCanUnloadNow,
+                  DllRegisterServer,
+                  DllUnregisterServer;
+ 
+----------------------------------------------------------------------------------------
+
+
+
+
+
+  Functional description.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+AtOpenLib.
+
+Pascal-style declaration: 
+
+  AtOpenLib : function (Prm : Integer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * AtOpenLib) (int Prm);
+
+It is necessary call this function only once - only after loading DLL into main program.
+For dynamic loading of DLL:
+call 'LoadLibrary' Windows API function, define a pointer to 'AtOpenLib' by calling 
+'GetProcAddress' Windows API function and then call 'AtOpenLib'.
+In a case of statically connected DLL just call 'AtOpenLib' once at the start of a program.
+'AtOpenLib' function must be called first, before calling any other function exported by
+this DLL. If ‘AtOpenLib is called a second time this will cause an error in program.
+Note that 'AtOpenLib' is not a main function of DLL and OS will never call it automatically.
+Input argument 'Prm' of this function is formal and reserved for future use.
+'Prm' can be any value.
+If the function works properly - then it returns value of maximal amount of oscilloscope's 
+instances which is possible to create using current dynamic-link library.
+If the function makes any error - then it returns code of error -1 (minus one).
+
+Before closing a program utilizing oscilloscope DLL its necessary to stop calling
+any function of the DLL, destroy all created instances of oscilloscope by 'ScopeDestroy'
+DLL function and then unload oscilloscope DLL using 'FreeLibrary' API function
+of MS Windows - if it was loaded dynamically.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeCreate.
+
+Pascal-style declaration:
+
+  ScopeCreate : function (Prm : Integer; P_IniName : Pointer; P_IniSuffix : Pointer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeCreate) (int Prm, char * P_IniName,  char * P_IniSuffix);
+
+This function creates a new instance of the oscilloscope. New instance is initialized completely
+and does not require any additional reset. Window (form) of the new instance is invisible.
+Call to 'ScopeShow' DLL function to bring new oscilloscope window onto computer screen.
+
+Argument 'Prm' is formal and reserved for future. Can be any value.
+Arguments 'P_IniName' and 'P_IniSuffix' are pointers to null-terminated ANSI character's strings.
+
+'P_IniName' is a pointer to the string which is name of 'INI' file describes properties of new
+oscilloscope's instance.
+
+If path string contains a character of colon (two-spot - ':') - it will be recognized as the
+absolute full path. If path string does not contains a colon character - then the new instance
+of oscilloscope will look for its 'INI' file in its own application's folder (directory).
+
+Length of this string must be not longer than 100 characters.
+If pointed string has zero length - than oscilloscope will look
+for 'INI' file having default name: 'Scope_Desk.ini'. If the file with required name does
+not exist - then new oscilloscope will apply to itself default and digestible properties.
+
+'P_IniSuffix' is a pointer to zero-terminated ANSI string containing last characters
+of section names. For example:
+If it points to zero-length string than new oscilloscope will look for settings
+in default [Oscilloscope] and [Miscellaneous] sections of 'INI' file.
+If it points to "ABC" string - then new oscilloscope will look for settings
+in [Oscilloscope_ABC] and [Miscellaneous_ABC] sections of 'INI' file.
+If section having required name does not exist - then new oscilloscope will use the default
+and digestible properties. Length of suffix string must not be longer than 100 characters.
+
+
+Sections explanation:
+
+[Oscilloscope]			- section contains properties of oscilloscope.
+OscVrulFontName=Arial		- Font name for vertical ruler digits.
+OscVrulFontSize=16		- Font size for vertical ruler digits.
+OscVrulFontStyleBold=0		- Bold stage for vertical ruler digits. 
+OscVrulFontStyleItalic=0	- Italic stage for vertical ruler digits.
+OscBackColor=00000000		- Oscilloscope's screen color.
+OscGridColor=00404040		- Oscilloscope's screen grid color.
+OscBeam0Color=0000FF00		- Color of first oscilloscope's beam. 
+OscBeam1Color=00FF00FF		- Color of second oscilloscope's beam. 
+OscBeam2Color=0000FFFF		- Color of third oscilloscope's beam. 
+OscVrulGenFontColor=000000FF	- Color of vertical ruler's digits when this valid for all beams.
+OscHorScaleColor=000000FF	- Color of text in field, found on the upper left corner of oscilloscope's graphical field:
+				  it displays horizontal sample signal resolution in one cell of the main oscilloscope's
+				  graphical field marking grid. In other words, it displays the horizontal sweep speed.
+OscZeroLineColor=00808080	- Color of zero horizontal line of oscilloscope's screen grid color.
+ShowSecondBeam=1		- Second beam visible (if is one) or invisible (if is zero).
+ShowThirdBeam=1			- Third beam visible (if is one) or invisible (if is zero).
+OscOscCaption=Oscilloscope	- String of basic caption of oscilloscope's window (form).
+ShowTestButton=1		- Button of test/performance measurement visible (if there is one) or invisible (if is zero).
+BfrSmplSize=500000		- Size (in signal's samples) of FIFO for every created beam (channel).
+BuffersRecordType=1		- Type of created FIFO element: if it is 1 - type is double floating, 0 - single floating.
+CreateSecondBeam=1		- If it is not zero - creates second beam and allocates memory for its FIFO buffer,
+				  otherwise - does not.
+CreateThirdBeam=1		- If it is not zero - creates third beam and allocates memory for its FIFO buffer,
+				  otherwise - does not.
+SpreadViewTiming=1		- If it is not zero - inserts insignificant random delay into timing of signal's
+				  visualisation to prevent beat (throbbing) effect between sweep of computer's monitor,
+				  sweep of oscilloscope's beams and ranked timing of samples output through
+				  'ShowNext' function.
+GridRefreshDivider=41		- How frequently grid has to be refreshed. This value defines number of horizontal beam's
+				  full screen sweep passes after which grid restoring starts.
+EventsProcDivider=1000		- This property created for lazy people calling to 'ShowNext' function of the library
+				  directly from the thread of the main window of program.
+				  This value defines amount of calling to 'ShowNext' function after which starts
+				  a 'ProcessMessages' algorithm.
+				  'ProcessMessages' permits the application to process messages that are currently
+				  in the message queue. ProcessMessages cycles the Windows message loop until
+				  it is empty, and then returns control to the 'ShowNext' function.
+				  Note: Neglecting message processing affects only the application calling
+				  ProcessMessages, not other applications. In lengthy operations, calling
+				  ProcessMessages periodically allows the application to respond other messages.
+				  Note: ProcessMessages does not allow the application to go idle,
+				  whereas 'HandleMessage' Windows API function does.
+				  If this value is zero - 'ProcessMessages' algorithm works never.
+GridCellPixelsSize=40		- Defines geometrical size of grid's cells in pixels of screen. From 10 to 150.
+				  Cells are always square.
+TriggerEnable=0			- Sweep trigger mode - if it is zero then trigger is disabled,
+				  if it is more than zero - trigger works on rising direction of signal slope,
+				  if it is less than zero - trigger works on falling direction of signal slope.
+FirstTriggerLevel=0.00		- Level of trigger's response for first beam - if trigger is enabled and
+				  first beam is selected as signal source for trigger. 
+SecondTriggerLevel=0.00		- Same like 'FirstTriggerLevel' but for second beam.
+ThirdTriggerLevel=0.00		- Same like 'FirstTriggerLevel' but for third beam.
+ExtrnTriggerLevel=0.00		- Same like 'FirstTriggerLevel' but for external trigger signal input.
+TriggerSource=0			- It defines the signal source for trigger. If it is 0 (zero) then trigger source
+				  first beam is 1 - second beam, 2 - third beam and 3 - external trigger signal input.
+TimeSamplesPerCell=20.0		- This is horizontal (time) scale. The value shows amount of signal's samples
+				  per one horizontal step of screen grid - per one cell of this grid.
+				  This is reading on start of oscilloscope and tending to nearest standard value
+				  of horizontal coordinate scale.
+Beam0VertScale=20.0		- This is vertical (amplitude) scale of first beam. This value shows amplitude
+				  dimensionality (scaling factor) of one vertical step of screen grid - one cell
+				  of this grid.
+Beam1VertScale=20.0		- Same like 'Beam0VertScale', but for second beam.
+Beam2VertScale=20.0		- Same like 'Beam0VertScale', but for third beam.
+Beam0VertOffset=0.0		- This is vertical (amplitude) offset of zero base for first beam from middle of
+				  oscilloscope's screen height.
+Beam1VertOffset=0.0		- Same like 'Beam0VertOffset', but for second beam.
+Beam2VertOffset=0.0		- Same like 'Beam0VertOffset', but for second beam.
+ScopeFormTop=108		- Computer screen's vertical coordinate of upper side of scope's form (window) in pixels.
+				  Point of origin is upper left corner of computer screen.
+ScopeFormLeft=108		- Computer screen's horizontal coordinate of left side of scope's form (window)
+				  in pixels of the screen.
+ScopeFormHeight=580		- Scope's form (window) height in pixels of computer screen.
+ScopeFormWidth=765		- Scope's form (window) width in pixels of computer screen.
+ScopeStayOnTop=0		- If it is not zero then scope's form (window) always stays in front of other windows 
+				  In this mode scope's window does not submit to 'ScopeFormTop' and 'ScopeFormLeft' fields.
+ScopeShowHints=0		- If it is not zero then scope shows hints about purpose of its visual control components.
+ShowTriggerControls=1		- if it is zero - hides all trigger's controls, otherwise does not.
+ShowOscJaggies=0		- If it is zero, the beam is plotted by connecting the signal discreet points with
+				  a single line segment (first order interpolation). If it is not zero, the adjacent
+				  beam points are connected by vertical & horizontal segments, thus displaying
+				  the beam in "steps" for better viewing of samples.
+ShowOscHexVal=0			- If this is not zero - then the 'VALUE' text field of scope's GUI has
+				  hexadecimal representation.
+ShowHexCheckBox=1		- If this is not zero - then 'Hex.' check box of scope's GUI is visible.
+				  If it is zero then 'VALUE' text field has decimal with fractional value representation.
+				  If it is not zero - 'VALUE' text field has hexadecimal integer representation.
+ScopeShowAutoSweep=0		- If it is not zero - the form of scope shows 'Auto sweep' check box trigger control.
+ScopeAutoSweep=0		- If it is not zero and 'ScopeShowAutoSweep' field is not zero and 'Auto sweep' check box
+				  is enabled then, trigger works in the auto sweep mode.
+ScopeAutoSweepDivider=4		- Decimation factor for auto sweep mode. Note that oscilloscope does not show
+				  all samples of signal in the auto sweep trigger mode. However, all signal samples
+				  will be saved in scope’s buffers
+ScopeInputDumpSize=32000	- Defines stage of oscilloscope's input dumping buffer.
+				  If it is 0 (zero or negative value) - then oscilloscope does not have any input
+				  dumping buffer, otherwise this field defines length of dumping buffer and
+				  'ShowNext' & 'ExternalNext' functions work through dumping buffer.
+				  Presence of this buffer does not reduce performance of oscilloscope, but solves
+				  time - critical situations. If this value is more than zero and less than 32000 - then
+				  dumping buffer length will be stated as 32000.
+
+[Miscellaneous]			- Section containing miscellaneous properties of oscilloscope's instance.
+ReadDelayPerSample=0		- Delay in mS. for one sample of signal reading from file and showing in the oscilloscope.
+
+
+If the function works properly - then it returns handle of new oscilloscope.
+Valid handle must be any signed integer value which is more than zero and not more than maximal
+amount of oscilloscope's instances returned by 'AtOpenLib' function.
+If returned handle does not meet the aforesaid conditions - then it is an error and new
+oscilloscope is not created.
+Returned valid handle is used for calling to every DLL's exported function operating 
+with created oscilloscope's instances.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeDestroy.
+
+Pascal-style declaration: 
+
+  ScopeDestroy : function (ScopeHandle : Integer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeDestroy) (int ScopeHandle);
+
+Full destroying of ocilloscope instance and freeing memory used for this instance.
+Gives ability to create amount of new oscilloscopes at one more than before
+oscilloscope destroying.
+'ScopeHandle' argument is handle of destroying oscilloscope. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+If function works properly - then it returns signed integer value which
+is equal to 'ScopeHandle' input argument, otherwise code of error returned and
+oscilloscope's instance is not destroyed.
+
+Before destroying of ocilloscope instance necessary to stop calling
+to this instance by any function of the DLL.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeShow.
+
+Pascal-style declaration: 
+
+  ScopeShow : function (ScopeHandle : Integer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeShow) (int ScopeHandle);
+
+Shows - brings oscilloscope's window (form) into screen.
+
+'ScopeHandle' argument is handle of showing oscilloscope. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+If function works properly - then it returns signed integer value which is
+equal to 'ScopeHandle' input argument, otherwise code of error returned and
+oscilloscope's instance is not showed.
+
+Attention! Frequent calling to this function will cause of slowing down of oscilloscope's performance speed.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeHide.
+
+Pascal-style declaration: 
+
+  ScopeHide : function (ScopeHandle : Integer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeHide) (int ScopeHandle);
+
+Hides - removes oscilloscope's window (form) from screen. Does not destroy 
+- makes it invisible only.
+
+'ScopeHandle' argument is handle of hiding oscilloscope. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+If function works properly - then it returns signed integer value which is
+equal to 'ScopeHandle' input argument, otherwise code of error returned and
+oscilloscope's instance is not hidden.
+
+Attention! Frequent calling to this function will cause of slowing down of oscilloscope's performance speed.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeCleanBuffers.
+
+Pascal-style declaration: 
+
+  ScopeCleanBuffers : function (ScopeHandle : Integer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeCleanBuffers) (int ScopeHandle);
+
+Cleans all signal data from scope's buffers and cleans scope's screen.
+
+'ScopeHandle' argument is handle of cleaning oscilloscope. This handle returned
+by 'ScopeCreate' function when this instance was created.
+
+If the function works properly - it then returns signed integer value which is
+equal to 'ScopeHandle' input argument, otherwise code of error returned and
+oscilloscope's instance is not cleaned.
+
+This function works slowly enough - use abilities of scope's trigger
+to run horizontal sweep from left side of scope's screen
+but not 'ScopeCleanBuffers' function.
+
+Attention! Frequent calling to this function will cause of slowing down of oscilloscope's performance speed.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ShowNext.
+
+Pascal-style declaration: 
+
+  ShowNext : function (ScopeHandle : Integer; PArrDbl : Pointer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ShowNext) (int ScopeHandle, double * PArrDbl);
+
+Output (drawing) of next stage of signal's beams of oscilloscope.
+
+'ScopeHandle' argument is handle of oscilloscope showing signal. This handle returned
+by 'ScopeCreate' function when this instance was created.
+
+'PArrDbl' argument is pointer to array of three variables of DOUBLE type
+(64-bit double-precision floating-point IEEE 754 format).
+First array member corresponds to first beam of oscilloscope, second member - to
+second beam and third - to third beam.
+New stages of beams will be drawn on oscilloscopes screen immediately.
+This function does not check validity of data pointed by 'PArrDbl' argument.
+If pointed data is invalid - then library will stop current thread and will show
+runtime error exception window.
+
+If the function works properly - then it returns signed integer value which is
+equal to 'ScopeHandle' input argument, otherwise code of error returned and
+oscilloscope's instance does not show next stage of signals.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ExternalNext.
+
+Pascal-style declaration: 
+
+  ExternalNext : function (ScopeHandle : Integer; PDbl : Pointer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ExternalNext) (int ScopeHandle, double * PDbl);
+
+
+Sending to oscilloscope new amplitude value of external signal for trigger.
+
+'ScopeHandle' argument is handle of oscilloscope showing signal. This handle returned
+by 'ScopeCreate' function when this instance was created.
+
+'PDbl' argument is pointer to variable of DOUBLE type (64-bit double-precision
+floating-point IEEE 754 format). This is new amplitude value of external signal for trigger.
+This function does not check validity of data pointed by 'PDbl' argument.
+If pointed data is invalid - then library will stop current thread and will show
+runtime error exception window.
+
+Actually this function just writes new external signal value into an internal variable
+of oscilloscope's instance.
+Oscilloscope will react on this value only at moment of calling to 'ShowNext' function.
+If call to 'ExternalNext' a few times one after another without calling to 'ShowNext'
+function - then only the last argument called to 'ExternalNext' function will be saved
+in the internal variable of oscilloscope's instance.
+
+Select 'for External' trigger source (TriggerSource=3 in ini. file) for tune
+oscilloscope's instance to react on external trigger signal.
+
+If the function works properly - then it returns signed integer value which
+is equal to 'ScopeHandle' input argument, otherwise code of error returned and
+oscilloscope's instance does not accept next stage of external signal.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+QuickUpDate.
+
+Pascal-style declaration: 
+
+  QuickUpDate : function (ScopeHandle : Integer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * QuickUpDate) (int ScopeHandle);
+
+Quickly refreshes screen of oscilloscope. Calling to this function usually
+not required. Recommended for using in situations when intensive data stream
+going into oscilloscope is stopped or interrupted for a long time.
+
+'ScopeHandle' argument is handle of updating oscilloscope. This handle returned
+by 'ScopeCreate' function when this instance was created.
+
+If the function works properly - then it returns signed integer value which 
+is equal to 'ScopeHandle' input argument, otherwise code of error returned and
+oscilloscope's instance is not updated.
+
+Attention! Frequent calling to this function will cause of slowing down of oscilloscope's performance speed.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeGetFormLeft.
+
+Pascal-style declaration: 
+
+  ScopeGetFormLeft : function (ScopeHandle : Integer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeGetFormLeft) (int ScopeHandle);
+
+
+Returns a horizontal ordinate of left border of oscilloscope's form (window) on the computer's screen.
+Returned position is represented in pixels of computer's screen.
+
+The point of origin of computer's screen (0;0) is its upper left corner, its positive directions are
+down and right.
+
+If it returns -2147483647  -  it is an error.
+
+'ScopeHandle' argument is handle of mentioned oscilloscope instance. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeGetFormTop.
+
+Pascal-style declaration: 
+
+  ScopeGetFormTop : function (ScopeHandle : Integer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeGetFormTop) (int ScopeHandle);
+
+
+Returns a vertical ordinate of upper border of oscilloscope's form (window) on the computer's screen.
+Returned position is represented in pixels of computer's screen.
+
+The point of origin of computer's screen (0;0) is its upper left corner, its positive directions are
+down and right.
+
+If it returns -2147483647  -  it is an error.
+
+'ScopeHandle' argument is handle of mentioned oscilloscope instance. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeGetFormWidth.
+
+Pascal-style declaration: 
+
+  ScopeGetFormWidth : function (ScopeHandle : Integer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeGetFormWidth) (int ScopeHandle);
+
+
+This function returns horizontal geometrical size of oscilloscope's form (window) in pixels of computer's screen.
+
+If it returns zero or negative value - it is an error.
+
+'ScopeHandle' argument is handle of mentioned oscilloscope instance. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeGetFormHeight.
+
+Pascal-style declaration: 
+
+  ScopeGetFormHeight : function (ScopeHandle : Integer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeGetFormHeight) (int ScopeHandle);
+
+
+This function returns vertical geometrical size of oscilloscope's form (window) in pixels of computer's screen.
+
+If it returns zero or negative value - it is an error.
+
+'ScopeHandle' argument is handle of mentioned oscilloscope instance. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeGetScreenWidth.
+
+Pascal-style declaration: 
+
+  ScopeGetScreenWidth : function (ScopeHandle : Integer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeGetScreenWidth) (int ScopeHandle);
+
+
+This function returns horizontal geometrical size of oscilloscope's signal screen in pixels of computer's screen.
+
+If it returns zero or negative value - it is an error.
+
+'ScopeHandle' argument is handle of mentioned oscilloscope instance. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeGetScreenHeight.
+
+Pascal-style declaration: 
+
+  ScopeGetScreenHeight : function (ScopeHandle : Integer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeGetScreenHeight) (int ScopeHandle);
+
+
+This function returns vertical geometrical size of oscilloscope's signal screen in pixels of computer's screen.
+
+If it returns zero or negative value - it is an error.
+
+'ScopeHandle' argument is handle of mentioned oscilloscope instance. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeGetCellPixelSize.
+
+Pascal-style declaration: 
+
+  ScopeGetCellPixelSize : function (ScopeHandle : Integer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeGetCellPixelSize) (int ScopeHandle);
+
+
+This function returns geometrical size of oscilloscope's grid cell (grid pitch, spacing) in pixels of screen.
+
+Shape of grid cells is square always.
+
+If it returns zero or negative value - it is an error.
+
+'ScopeHandle' argument is handle of mentioned oscilloscope instance. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeGetCellSampleSize.
+
+Pascal-style declaration: 
+
+  ScopeGetCellSampleSize : function (ScopeHandle : Integer) : Double; cdecl;
+
+C-style declaration:
+
+  double (__cdecl * ScopeGetCellSampleSize) (int ScopeHandle);
+
+
+This function returns oscilloscope's horizontal scale of grid cell in time samples of signal.
+
+If it returns zero or negative value - it is an error.
+
+'ScopeHandle' argument is handle of mentioned oscilloscope instance. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeGetPanelState.
+
+Pascal-style declaration: 
+
+  ScopeGetPanelState : function (ScopeHandle : Integer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeGetPanelState) (int ScopeHandle);
+
+
+This function returns 1 (one) if control panel of mentioned oscilloscope has hidden state
+or 2 (two) - if it is visible.
+
+If it returns some other value - it is an error.
+
+'ScopeHandle' argument is handle of mentioned oscilloscope instance. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeSetPanelState.
+
+Pascal-style declaration: 
+
+  ScopeSetPanelState : function (ScopeHandle : Integer; VisState : Integer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeSetPanelState) (int ScopeHandle, int VisState);
+
+
+This function sets control panel of mentioned oscilloscope into visible or invisible state.
+If 'VisState' argument is not zero - then function will show panel, otherwise - hide.
+
+'ScopeHandle' argument is handle of mentioned oscilloscope instance. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+If the function works properly - then it returns signed integer value which is
+equal to 'ScopeHandle' input argument, otherwise code of error returned and
+state of oscilloscope's control panel is not changed.
+
+Attention! Frequent calling to this function will cause of slowing down of oscilloscope's performance speed.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeSetFormPos.
+
+Pascal-style declaration: 
+
+  ScopeSetFormPos : function (ScopeHandle : Integer; FormLeft : Integer; FormTop : Integer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeSetFormPos) (int ScopeHandle, int FormLeft, int FormTop);
+
+
+This function sets new geometrical position of oscilloscope's form (window) on the computer's screen.
+New position defined in pixels of screen by 'FormLeft' and 'FormTop' arguments.
+'FormLeft' argument defines a horizontal ordinate of left border of form.
+'FormTop' argument defines a vertical ordinate of upper border of form.
+The point of origin of computer's screen (0;0) is its upper left corner, its positive directions are
+down and right.
+
+'ScopeHandle' argument is handle of mentioned oscilloscope instance. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+If the function works properly - then it returns signed integer value which is
+equal to 'ScopeHandle' input argument, otherwise code of error returned and
+oscilloscope's position on the screen is not changed.
+
+Attention! Frequent calling to this function will cause of slowing down of oscilloscope's performance speed.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeSetFormSize.
+
+Pascal-style declaration: 
+
+  ScopeSetFormSize : function (ScopeHandle : Integer; FormWidth : Integer; FormHeight : Integer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeSetFormSize) (int ScopeHandle, int FormWidth, int FormHeight);
+
+
+This function sets new geometrical size of oscilloscope's form (window) in pixels of screen.
+'FormWidth' argument defines new width of form, 'FormHeight' - new height.
+
+'ScopeHandle' argument is handle of mentioned oscilloscope instance. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+If the function works properly - then it returns signed integer value which is
+equal to 'ScopeHandle' input argument, otherwise code of error returned and
+oscilloscope's form size is not changed.
+
+Attention! Frequent calling to this function will cause of slowing down of oscilloscope's performance speed.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeSetCellPixelSize.
+
+Pascal-style declaration: 
+
+  ScopeSetCellPixelSize : function (ScopeHandle : Integer; CellPixelSize : Integer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeSetCellPixelSize) (int ScopeHandle, int CellPixelSize);
+
+
+This function sets new geometrical size of oscilloscope's grid cell (grid pitch, spacing) in pixels of screen.
+New grid pitch is defined by 'CellPixelSize' of function and can be from 10 to 150.
+
+Shape of grid cells is square always.
+
+'ScopeHandle' argument is handle of mentioned oscilloscope instance. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+If the function works properly - then it returns signed integer value which is
+equal to 'ScopeHandle' input argument, otherwise code of error returned and
+oscilloscope's size of grid cell is not changed.
+
+Attention! Frequent calling to this function will cause of slowing down of oscilloscope's performance speed.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeSetCellSampleSize.
+
+Pascal-style declaration: 
+
+  ScopeSetCellSampleSize : function (ScopeHandle : Integer; CellSampleSize : Double) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeSetCellSampleSize) (int ScopeHandle, double CellSampleSize);
+
+
+This function sets oscilloscope's horizontal scale of grid cell in time samples of signal.
+New cell's scale is defined by 'CellSampleSize' argument of the function.
+The oscilloscope will bring cell's scale to nearest standard scale value.
+For instance: if 'CellSampleSize' is 53 - then new cell's scale will be stated as 50.
+Here are listed standard (normalized) scale's values:
+0.1; 0.2; 0.5; 1; 2; 5; 10; 20; 50; 100; 200; 500; 1000; 2000; 5000; 10000; 20000.
+
+'ScopeHandle' argument is handle of mentioned oscilloscope instance. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+If the function works properly - then it returns signed integer value which is
+equal to 'ScopeHandle' input argument, otherwise code of error returned and
+oscilloscope's horizontal scale of grid cell is not changed.
+
+Attention! Frequent calling to this function will cause of slowing down of oscilloscope's performance speed.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeSetCaption.
+
+Pascal-style declaration: 
+
+  ScopeSetCaption : function (ScopeHandle : Integer; P_ZeroTermStr : Pointer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeSetCaption) (int ScopeHandle, char * P_ZeroTermStr);
+
+
+This function writes new text string into the caption of mentioned oscilloscope's window (form).
+
+The caption is a text allocated on the top of screen form.
+
+Argument 'P_ZeroTermStr' is a pointer to null-terminated ANSI character's string of new caption.
+Its length can be not more than 250 characters.
+
+'ScopeHandle' argument is handle of mentioned oscilloscope instance. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+If the function works properly - then it returns signed integer value which is
+equal to 'ScopeHandle' input argument, otherwise code of error returned and
+oscilloscope's caption string is not changed.
+
+Attention! Frequent calling to this function will cause of slowing down of oscilloscope's performance speed.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeSetAmpScale.
+
+Pascal-style declaration: 
+
+  ScopeSetAmpScale : function (ScopeHandle : Integer; BeamNum : Integer; AmpScale : Double) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeSetAmpScale) (int ScopeHandle, int BeamNum, double AmpScale);
+
+
+This function sets vertical (amplitude) scale of mentioned oscilloscope's beam.
+Functional argument 'AmpScale' defines new amplitude value of one grid cell in signal's amplitude units.
+
+The oscilloscope will bring cell's vertical scale to nearest standard scale value.
+For instance: if 'AmpScale' is 52.78467 - then new cell's vertical scale will be stated as 50.0 .
+Here are listed some of standard (normalized) scale's values:
+... 0.00001; 0.00002; 0.00005; 0.0001; 0.0002; 0.0005; 0.001; 0.002; 0.005; 0.01; 0.02; 0.05;
+    0.1; 0.2; 0.5; 1; 2; 5; 10; 20; 50; 100; 200; 500; 1000; 2000; 5000; 10000; 20000; 50000... etceteras.
+
+Argument 'BeamNum' defines beam for rescale: If it is 0 - it is first beam, 1 - second and 2 - third.
+
+'ScopeHandle' argument is handle of mentioned oscilloscope instance. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+If the function works properly - then it returns signed integer value which is
+equal to 'ScopeHandle' input argument, otherwise code of error returned and
+oscilloscope's beam amplitude scale will be not changed.
+
+Attention! Frequent calling to this function will cause of slowing down of oscilloscope's performance speed.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeSetAmpOffset.
+
+Pascal-style declaration: 
+
+  ScopeSetAmpOffset : function (ScopeHandle : Integer; BeamNum : Integer; AmpOffset : Double) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeSetAmpOffset) (int ScopeHandle, int BeamNum, double AmpOffset);
+
+This function sets vertical (amplitude) offset (bias) of mentioned oscilloscope's beam.
+
+Functional argument 'AmpOffset' defines vertical (amplitude) offset of zero base for mentioned beam
+from middle of oscilloscope's screen height in signal's amplitude units - NOT in pixels of screen.
+
+Argument 'BeamNum' defines beam for rescale: If it is 0 - it is first beam, 1 - second and 2 - third.
+
+'ScopeHandle' argument is handle of mentioned oscilloscope instance. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+If the function works properly - then it returns signed integer value which is
+equal to 'ScopeHandle' input argument, otherwise code of error returned and
+oscilloscope's beam amplitude offset will be not changed.
+
+Attention! Frequent calling to this function will cause of slowing down of oscilloscope's performance speed.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeGetAmpScale.
+
+Pascal-style declaration: 
+
+  ScopeGetAmpScale : function (ScopeHandle : Integer; BeamNum : Integer) : Double; cdecl;
+
+C-style declaration:
+
+  double (__cdecl * ScopeGetAmpScale) (int ScopeHandle, int BeamNum);
+
+This function returns oscilloscope's vertical (amplitude) scale of mentioned beam.
+Returned value is value of one grid cell in signal's amplitude units.
+
+Argument 'BeamNum' defines beam number: If it is 0 - it is first beam, 1 - second and 2 - third.
+
+'ScopeHandle' argument is handle of mentioned oscilloscope instance. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+If it returns zero or negative value - it is an error.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeGetAmpOffset.
+
+Pascal-style declaration: 
+
+  ScopeGetAmpOffset : function (ScopeHandle : Integer; BeamNum : Integer) : Double; cdecl;
+
+C-style declaration:
+
+  double (__cdecl * ScopeGetAmpOffset) (int ScopeHandle, int BeamNum);
+
+
+This function returns oscilloscope's vertical (amplitude) offset (bias) of mentioned beam.
+Returned value represents vertical (amplitude) offset of zero base for mentioned beam
+from middle of oscilloscope's screen height in signal's amplitude units - NOT in pixels of screen.
+
+Argument 'BeamNum' defines beam number: If it is 0 - it is first beam, 1 - second and 2 - third.
+
+'ScopeHandle' argument is handle of mentioned oscilloscope instance. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeGetTriggerLevel.
+
+Pascal-style declaration: 
+
+  ScopeGetTriggerLevel : function (ScopeHandle : Integer; BeamNum : Integer) : Double; cdecl;
+
+C-style declaration:
+
+  double (__cdecl * ScopeGetTriggerLevel) (int ScopeHandle, int BeamNum);
+
+
+This function returns oscilloscope's amplitude trigger's actuation level of mentioned beam.
+Returned value represents amplitude trigger's level for mentioned beam in signal's amplitude units.
+
+Argument 'BeamNum' defines beam number: If it is 0 - it is first beam, 1 - second and 2 - third.
+If it is 3 - it is trigger's input for 'External' synchronization.
+
+'ScopeHandle' argument is handle of mentioned oscilloscope instance. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeSetTriggerLevel.
+
+Pascal-style declaration: 
+
+  ScopeSetTriggerLevel : function (ScopeHandle : Integer; BeamNum : Integer; TrigLevel : Double) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeSetTriggerLevel) (int ScopeHandle, int BeamNum, double TrigLevel);
+
+This function sets oscilloscope's trigger's amplitude level of mentioned beam.
+
+Functional argument 'TrigLevel' defines trigger's amplitude actuation level of mentioned beam in signal's amplitude units.
+
+Argument 'BeamNum' defines beam for rescale: If it is 0 - it is first beam, 1 - second and 2 - third.
+If it is 3 - it is trigger's input for 'External' synchronization.
+
+'ScopeHandle' argument is handle of mentioned oscilloscope instance. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+If the function works properly - then it returns signed integer value which is
+equal to 'ScopeHandle' input argument, otherwise code of error returned and
+oscilloscope's trigger's amplitude level will be not changed.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeGetTriggerSourse.
+
+Pascal-style declaration: 
+
+  ScopeGetTriggerSourse : function (ScopeHandle : Integer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeGetTriggerSourse) (int ScopeHandle);
+
+
+This function returns currently active oscilloscope's trigger sourse.
+
+Returned value represents channel number: If it is 0 - it is first beam, 1 - second and 2 - third.
+If it is 3 - it is trigger's input for 'External' synchronization.
+
+'ScopeHandle' argument is handle of mentioned oscilloscope instance. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+If returned value is -1 - it is function error. Probably oscilloscope instance with mentioned 'ScopeHandle'
+doesn't exist.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeSetTriggerSourse.
+
+Pascal-style declaration: 
+
+  ScopeSetTriggerSourse : function (ScopeHandle : Integer; BeamNum : Integer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeSetTriggerSourse) (int ScopeHandle, int BeamNum);
+
+This function sets active oscilloscope's trigger sourse.
+
+Argument 'BeamNum' defines beam for trigger input: If it is 0 - it is first beam, 1 - second and 2 - third.
+If it is 3 - it is trigger's input for 'External' synchronization.
+
+'ScopeHandle' argument is handle of mentioned oscilloscope instance. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+If the function works properly - then it returns signed integer value which is
+equal to 'ScopeHandle' input argument, otherwise code of error returned and
+oscilloscope's trigger sourse will be not changed.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeGetActiveTriggerEdge.
+
+Pascal-style declaration: 
+
+  ScopeGetActiveTriggerEdge : function (ScopeHandle : Integer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeGetActiveTriggerEdge) (int ScopeHandle);
+
+
+This function returns currently active direction of oscilloscope's trigger edge.
+
+Returned value represents sweep trigger mode - if it is zero then trigger is disabled,
+if it is  1 - trigger works on rising direction of signal slope,
+if it is -1 - trigger works on falling direction of signal slope.
+
+'ScopeHandle' argument is handle of mentioned oscilloscope instance. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+If returned value is -2 - it is function error. Probably oscilloscope instance with mentioned 'ScopeHandle'
+doesn't exist.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeSetActiveTriggerEdge.
+
+Pascal-style declaration: 
+
+  ScopeSetActiveTriggerEdge : function (ScopeHandle : Integer; TriggerEdge : Integer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeSetActiveTriggerEdge) (int ScopeHandle, int TriggerEdge);
+
+This function sets active direction of oscilloscope's trigger edge or disables the trigger.
+
+Argument 'TriggerEdge' defines new active direction of oscilloscope's trigger edge:
+if it is zero then trigger is disabled,
+if it is more than zero - trigger works on rising direction of signal slope,
+if it is less than zero - trigger works on falling direction of signal slope.
+
+'ScopeHandle' argument is handle of mentioned oscilloscope instance. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+If the function works properly - then it returns signed integer value which is
+equal to 'ScopeHandle' input argument, otherwise code of error returned and
+oscilloscope's trigger mode will be not changed.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeGetTrigHoldOffSmplsNum.
+
+Pascal-style declaration: 
+
+  ScopeGetTrigHoldOffSmplsNum : function (ScopeHandle : Integer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeGetTrigHoldOffSmplsNum) (int ScopeHandle);
+
+
+This function returns 'Hold OFF' parameter of oscilloscope's trigger.
+
+Returned value represents amout of signal's samples between trigger's latching event
+and start of new horizontal sweep of oscilloscope's beams (from left side of oscilloscope's screen).
+
+Its positive value defines 'Holded off' - delayed start of sweep.
+Its negative value defines beforehand trigger latch start - forwarded start of sweep.
+Forwarded mode of oscilloscope's trigger can be not implemented.
+
+'ScopeHandle' argument is handle of mentioned oscilloscope instance. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+If it returns -2147483647  -  it is an error - probably oscilloscope instance with mentioned
+'ScopeHandle'doesn't exist.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+ScopeSetTrigHoldOffSmplsNum.
+
+Pascal-style declaration: 
+
+  ScopeSetTrigHoldOffSmplsNum : function (ScopeHandle : Integer; HoldOffVal : Integer) : Integer; cdecl;
+
+C-style declaration:
+
+  int (__cdecl * ScopeSetTrigHoldOffSmplsNum) (int ScopeHandle, int HoldOffVal);
+
+This function sets 'Hold OFF' parameter of oscilloscope's trigger.
+
+Argument 'HoldOffVal' defines amout of signal's samples between trigger's latching event
+and start of new horizontal sweep of oscilloscope's beams (from left side of oscilloscope's screen).
+
+Its positive value defines 'Holded off' - delayed start of sweep.
+Its negative value defines beforehand trigger latch start - forwarded start of sweep.
+Forwarded mode of oscilloscope's trigger can be not implemented.
+
+'ScopeHandle' argument is handle of mentioned oscilloscope instance. This handle is returned
+by 'ScopeCreate' function when this instance was created.
+
+If the function works properly - then it returns signed integer value which is
+equal to 'ScopeHandle' input argument, otherwise code of error returned and
+oscilloscope's trigger 'Hold OFF' parameter will be not changed.
+
+----------------------------------------------------------------------------------------
+
+
+
+
+
+DllGetClassObject, DllCanUnloadNow, DllRegisterServer and DllUnregisterServer functions
+support interface to regsvr32.exe MS Windows utility and do not have to be used.
+Can be used only if required.
+
+----------------------------------------------------------------------------------------
+
+
+
+  The functional purpose of the visual interface elements of oscilloscope.
+
+   The window (form) of oscilloscope contains a group of standard elements.
+   These and only these elements are the oscilloscope’s interface elements.
+
+   The most graphical field having grid is the main oscilloscope’s screen.
+   All channel beams are downloaded here.
+
+   Vertical column of numbers is the additional graphical field, displaying the textual
+   information concerning the vertical (amplitude) signal scale and offset.
+
+   Textual field, found on the upper left corner of oscilloscope's screen
+   displays horizontal sample signal resolution in one cell of the main oscilloscope's
+   graphical field's marking grid. In other words, it displays the horizontal sweep speed.
+
+   Panel located under oscilloscope's graphical field contains all oscilloscope's
+   managing elements. Our continuing description refers to elements contained on this panel.
+
+   Buttons with black vertical arrows - vertical zoom management.
+   Vertical zoom management is available with the aid of vertical ruler field as well:
+   move mouse pointer on vertical ruler field, press and hold right mouse button depressed
+   and move mouse pointer vertically. 
+
+   Buttons with black horizontal arrows - horizontal zoom management.
+
+   Button with '0' (zero) - attributing the vertical scale zero point to the middle
+   height of the main graphic field. 
+
+   Buttons with red diagonal arrows - changes the geometrical size of the main graphical
+   field grid cells (vertically as well as horizontally).
+
+   Buttons with red vertical arrows - rolls (shift) the vertical scale and signal up & down.
+   Vertical rolling management is available with the aid of vertical ruler field as well:
+   move mouse pointer at vertical ruler field, press and hold left mouse button depressed
+   and move mouse pointer vertically. Can use mouse’s scroll wheel.
+
+   Buttons with red horizontal arrows - rolls (shift) the signal horizontally.
+   Can be done by depressing “shift” or “control” buttons and rotating mouse’s scroll wheel. 
+
+   Button with picture of hand points to scale - search for the beam. Shifts the vertical
+   scale & the beam, placing the last beam sample in the middle of graphical field height.
+   Works for all beams, changing from one to the other with every click of the button.
+
+   Button with picture of magnifying glass - returns to the previous vertical & horizontal
+   zoom scales which are changed by selecting & enlarging of the main graphical field section
+   by pressing on the right mouse-button.
+
+   Textual field 'VALUE:' - textual field designed to obtain the instantaneous value of the
+   channel's amplitude while moving the mouse cursor in the main graphical field.
+   Deduces the signal amplitude value in the moment of time corresponding to the horizontal
+   mouse's cursor position in the oscilloscope graphical field.
+   It is possible to switch it to other beams by double clicking mouse’s left button.
+   Check 'Hex.' check box for hexadecimal value representation.
+
+   'Jaggies' check box - changes the graphical style of the beams' representation.
+   If this element is not selected, the beam is plotted by connecting the signal’s discreet
+   points with a single line segment (first order interpolation). If this element is enacted,
+   the adjacent beam points are connected by vertical & horizontal segments, thus displaying
+   the beam in "steps" for better viewing of samples.
+
+  'Trigger' button puts the oscilloscope in the trigger mode. In this mode the next
+   horizontal sweep cycle occurs only if the front of the first beam crosses the
+   amplitude level determined in the textual field on the right of this button.
+   Current mode of trigger shown by picture on this button: if it is diagonal cross - the trigger
+   is disabled, if it is an image of rising edge with arrow directed upwards - the trigger
+   works on positive (rising) slope of signal, if it is an image of falling edge with arrow
+   directed downwardss - the trigger works on negative (falling) slope of signal.
+
+   'for Beam N' or 'for External' button defines the signal source for trigger.
+
+   'Manual' check box - It's selection determines the manual trigger set mode - i.e.
+   only with a single horizontal sweep cycle & only after clicking the 'Wait for next...' button.
+   In the manual mode 'Wait for next...' button will be disabled until event of trigger
+   does not happen.
+
+   'Auto sweep' check box (can be invisible) - is trigger's mode control also.
+   Selection of this check box brings oscilloscope into auto sweep trigger mode.
+   Note that oscilloscope shows not all samples of signal in this trigger mode.
+   However, all signal samples will be saved in scope’s buffers
+   
+   'ScopeAutoSweepDivider' field of ini. file defines decimation factor for auto sweep mode.
+   The auto sweep mode works in the next style: If trigger did not work out on it's predefined
+   event during predefined amount of signal samples - then oscilloscope runs one horizontal
+   sweep screen pass and then comes back to waiting stage until trigger's event or until
+   next expiration of amount of unshown signal samples.
+   Amount of unshown signal samples defined as product of value of 'ScopeAutoSweepDivider'
+   field of ini. file and amount of samples per one screen pass for current horizontal
+   scale of oscilloscope. Auto sweep trigger mode only works if 'Auto sweep' check box
+   is visible, enabled and checked.
+
+   Note that ALL signal's samples are recorded in oscilloscope's buffers without data loss
+   (omission) in ALL trigger's modes. This means that REAL signal's data sequence will be
+   restored on the screen after repainting of signal's beams by any of oscilloscope's controls.
+
+
+   'Beams' button commutes screen control (buttons with arrows and so on) between beams.
+   If this button has caption 'Beams' - then control connected to all visible beams.
+   Pressing on this button will change caption to 'Beam 0', next pressing - to 'Beam 1',
+   next - to 'Beam 2' and next - again to 'Beams'. Screen control will work for beam having
+   same number as caption: first beam is controlled if caption is 'Beam 0', second -
+   if caption is 'Beam 1', third - if caption is 'Beam 2'.
+   Graphical field, displaying the textual info concerning the vertical (amplitude)
+   signal scale will change color of digits in accordance with color of currently
+   controlled beam. Offset and zoom of this vertical scale will bring conformity with
+   currently controlled beam. If this button has stage 'Beams', but offsets and/or zoom
+   of beams are different, then vertical scale will show parameters for first beam.
+   It is very easy to bring all beams to same offset and zoom: when button has
+   stage 'Beams' press 'Zero' (0) button.
+   If this button has stage 'Beams', and offsets and zoom of beams are equal - 
+   then vertical scale will apply to digits color described in the 'INI' file
+   in the section [Oscilloscope] (taking into account suffix)
+   in the field 'OscVrulGenFontColor'.
+   Switching by 'Beams' button has no effect on:
+   textual field 'VALUE:',
+   'Trigger' button and it's textual field,
+   textual field of horizontal scale,
+   buttons of horizontal zoom management,
+   buttons of horizontal rolling management,
+   'STEPS' check box,
+   and button with picture of magnifying glass.
+   Double click of left mouse button when mouse pointer is located on vertical scale
+   ruler will gives same effect like pressing on 'Beams' button.
+
+   'Disconnect' button located in lower right corner of oscilloscope's form.
+   This button disconnects oscilloscope from data stream going through 'ShowNext'
+   DLL exported function. 'ShowNext' function does not affect calling external process.
+   'ShowNext' function just gives a work-out like dummy (empty) function - does nothing.
+   After disconnection oscilloscope obtains any additional abilities which
+   are not allowed in the online mode: select gap of signal using left button of mouse,
+   copy selected gap of signal onto clipboard (as text) or save it to text file,
+   select file and read it onto oscilloscope's screen, select area of oscilloscope's
+   screen for zoom using right button of mouse, to measure of oscilloscope graphical
+   performance (if field ShowTestButton=1 in 'INI' file.). Recurring pressure to
+   this button will not allow additional abilities and will bring oscilloscope into
+   online mode again.
+
+   'Menu' button is enabled when oscilloscope disconnected from data stream.
+   Opens main menu of oscilloscope.
+
+   'Read from file' button is enabled when oscilloscope disconnected from data stream
+   and file for reading selected by means of 'Open file...' menu item.
+   Note that just selecting file for reading will not initiate reading of the file.
+   In this situation full path and name of selected file will placed on the caption
+   of oscilloscope's form.
+   Pressing on 'Read from file' button will clear oscilloscope's signal buffers and
+   will begin reading selected file and loading read data into lines of beams.
+   Special slowing down of this output is possible through 'ReadDelayPerSample' filed
+   in [Miscellaneous] (with suffix) section in the 'INI' file.
+   Stated parameter of this field in mS. for one sample of signal.
+   Recurring pressure on this button will clear oscilloscope's signal buffers and
+   reread file again.
+
+   'Test/Performance' button is visible if 'ShowTestButton' filed in the [Oscilloscope]
+   (with suffix) section in the 'INI' file is 1 (one).
+   This button is enabled when oscilloscope disconnected from data stream.
+   Runs measurement of graphical operating speed for 10 - 20 seconds. Shows results
+   of test in opening dialog window.
+
+
+
+
+Official web site of the project is: http://www.oscilloscope-lib.com
+
+The web mirror: http://brnstin.googlepages.com
+
+
+My E_Mail: brnstin@zahav.net.il  ;  brnstin@cheerful.com
+
